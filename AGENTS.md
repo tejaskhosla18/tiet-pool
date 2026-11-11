@@ -28,3 +28,7 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project architecture
+
+- Keep CampusPool's demo ride state and domain calculations in `src/lib/campuspool.ts`, with browser persistence owned by the `/` route; this keeps the mock experience self-contained and ready for a later campus-aware backend.
