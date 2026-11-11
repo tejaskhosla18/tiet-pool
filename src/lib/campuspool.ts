@@ -149,6 +149,15 @@ export function farePerPerson(pool: Pick<Pool, "estimatedFare" | "passengers">) 
   return Math.ceil(pool.estimatedFare / Math.max(1, pool.passengers.length));
 }
 
+export function fareIfFull(pool: Pick<Pool, "estimatedFare" | "capacity">) {
+  return Math.ceil(pool.estimatedFare / pool.capacity);
+}
+
+export function fareSavings(soloFare: number, members: number) {
+  const sharedFare = Math.ceil(soloFare / Math.max(1, members));
+  return { sharedFare, savings: soloFare - sharedFare };
+}
+
 export function pickupOrder(point: string) {
   const index = PICKUP_POINTS.indexOf(point as (typeof PICKUP_POINTS)[number]);
   return index < 0 ? PICKUP_POINTS.length : index;
