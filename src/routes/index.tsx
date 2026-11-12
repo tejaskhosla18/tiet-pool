@@ -16,8 +16,8 @@ import { Slider } from "@/components/ui/slider";
 import { Toaster } from "@/components/ui/sonner";
 import campusRideImage from "@/assets/campuspool-ride.jpg";
 import {
-  availableSeats, CURRENT_STUDENT, FARE_BY_HUB, fareIfFull, farePerPerson, fareSavings,
-  formatTime, orderedPassengers, PICKUP_POINTS, SEED_POOLS, timePeriod, TRANSIT_HUBS,
+  availableSeats, CURRENT_STUDENT, fareIfFull, farePerPerson, fareSavings,
+  formatTime, orderedPassengers, PICKUP_POINTS, SEED_POOLS, suggestedFare, timePeriod, TRANSIT_HUBS,
   type Direction, type Luggage, type Pool, type PoolMessage,
 } from "@/lib/campuspool";
 
@@ -48,7 +48,7 @@ function CampusPoolApp() {
   const [hydrated, setHydrated] = useState(false);
   const [tab, setTab] = useState<Tab>("Find a Cab");
   const [direction, setDirection] = useState<Direction>("Home");
-  const [destination, setDestination] = useState("All destinations");
+  const [destination, setDestination] = useState("");
   const [travelDate, setTravelDate] = useState("");
   const [period, setPeriod] = useState<Period>("Any time");
   const [seatsOnly, setSeatsOnly] = useState(false);
@@ -83,7 +83,7 @@ function CampusPoolApp() {
   const myPools = pools.filter((pool) => pool.passengers.some((person) => person.id === CURRENT_STUDENT.id));
   const filteredPools = useMemo(() => pools.filter((pool) => {
     if (pool.direction !== direction) return false;
-    if (destination !== "All destinations" && pool.destination !== destination) return false;
+    if (destination.trim() && !pool.destination.toLowerCase().includes(destination.trim().toLowerCase())) return false;
     if (travelDate && pool.date !== travelDate) return false;
     if (period !== "Any time" && timePeriod(pool.departureStart).toLowerCase() !== period.toLowerCase()) return false;
     if (seatsOnly && availableSeats(pool) === 0) return false;
@@ -147,7 +147,7 @@ function CampusPoolApp() {
   const createPool = (pool: Pool) => {
     setPools((current) => [pool, ...current]);
     setDirection(pool.direction);
-    setDestination("All destinations");
+    setDestination("");
     setTravelDate("");
     setPeriod("Any time");
     setSeatsOnly(false);
@@ -240,12 +240,12 @@ function FindTrips(props: FiltersProps) {
 
     <section className="mb-7 grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-[1.5fr_1fr_1fr_1.3fr_auto] xl:items-end" aria-label="Ride filters">
       <label className="grid gap-1.5 text-[11px] font-semibold text-muted-foreground">DESTINATION HUB
-        <span className="relative"><MapPin className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" /><select value={destination} onChange={(event) => setDestination(event.target.value)} className="h-10 w-full appearance-none rounded-md border border-input bg-background pl-9 pr-8 text-sm font-normal text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"><option>All destinations</option>{TRANSIT_HUBS.map((hub) => <option key={hub}>{hub}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /></span>
+        <span className="relative"><MapPin className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" /><Input list="place-suggestions" value={destination} onChange={(event) => setDestination(event.target.value)} placeholder="Search any place (e.g. Ludhiana, Ambala)" aria-label="Search destination" className="h-10 pl-9" /><datalist id="place-suggestions">{TRANSIT_HUBS.map((hub) => <option key={hub} value={hub} />)}</datalist></span>
       </label>
       <label className="grid gap-1.5 text-[11px] font-semibold text-muted-foreground">TRAVEL DATE<span className="relative"><CalendarDays className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" /><Input type="date" value={travelDate} onChange={(event) => setTravelDate(event.target.value)} className="h-10 pl-9 text-sm font-normal" aria-label="Filter by travel date" /></span></label>
       <label className="grid gap-1.5 text-[11px] font-semibold text-muted-foreground">DEPARTURE TIME<span className="relative"><Clock3 className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" /><select value={period} onChange={(event) => setPeriod(event.target.value as Period)} className="h-10 w-full appearance-none rounded-md border border-input bg-background pl-9 pr-8 text-sm font-normal text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">{TIME_FILTERS.map((time) => <option key={time}>{time}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /></span></label>
       <label className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-input px-3 text-sm text-foreground"><input type="checkbox" checked={seatsOnly} onChange={(event) => setSeatsOnly(event.target.checked)} className="size-4 accent-primary" /> Only show available seats</label>
-      <Button variant="ghost" size="sm" onClick={() => { setDestination("All destinations"); setTravelDate(""); setPeriod("Any time"); setSeatsOnly(false); }} className="gap-1.5 text-muted-foreground"><SlidersHorizontal className="size-4" /> Reset</Button>
+      <Button variant="ghost" size="sm" onClick={() => { setDestination(""); setTravelDate(""); setPeriod("Any time"); setSeatsOnly(false); }} className="gap-1.5 text-muted-foreground"><SlidersHorizontal className="size-4" /> Reset</Button>
     </section>
 
     <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2"><Badge variant="secondary" className="font-semibold">{pools.length} {pools.length === 1 ? "ride" : "rides"}</Badge><span className="text-sm text-muted-foreground">{direction === "Home" ? "Heading away from campus" : "Heading to TIET Patiala"}</span></div><span className="hidden text-xs text-muted-foreground sm:block">Updated just now</span></div>
@@ -277,15 +277,16 @@ function EmptyRides({ onPost }: { onPost: () => void }) {
 
 function PostTrip({ onCreate, onBack }: { onCreate: (pool: Pool) => void; onBack: () => void }) {
   const [tripDirection, setTripDirection] = useState<Direction>("Home");
-  const [hub, setHub] = useState<(typeof TRANSIT_HUBS)[number]>(TRANSIT_HUBS[0]);
+  const [hub, setHub] = useState<string>("");
+  const [customFare, setCustomFare] = useState<string>("");
   const [date, setDate] = useState("2026-11-14");
   const [arrival, setArrival] = useState("08:00");
   const [transit, setTransit] = useState("");
   const [luggage, setLuggage] = useState<Luggage>("1 suitcase");
   const [pickup, setPickup] = useState<string>(PICKUP_POINTS[9] ?? "Hostel J");
   const [capacity, setCapacity] = useState<4 | 6>(4);
-  const fare = FARE_BY_HUB[hub] + (capacity === 6 ? 800 : 0);
-  const canSubmit = Boolean(date && arrival && pickup && hub);
+  const fare = Number(customFare) > 0 ? Number(customFare) : suggestedFare(hub) + (capacity === 6 ? 800 : 0);
+  const canSubmit = Boolean(date && arrival && pickup.trim() && hub.trim());
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -294,11 +295,11 @@ function PostTrip({ onCreate, onBack }: { onCreate: (pool: Pool) => void; onBack
     const departureStart = `${String((hours + 22) % 24).padStart(2, "0")}:${arrival.split(":")[1]}`;
     const departureEnd = `${String((hours + 22) % 24).padStart(2, "0")}:${String((Number(arrival.split(":")[1]) + 20) % 60).padStart(2, "0")}`;
     const routePool: Pool = {
-      id: `pool-${Date.now()}`, direction: tripDirection, destination: hub, date,
+      id: `pool-${Date.now()}`, direction: tripDirection, destination: hub.trim(), date,
       departureStart, departureEnd, arrivalTime: arrival,
       transitDetail: transit.trim() ? `${transit.trim()} · connection details` : "Flexible connection · add transit details in your pool",
       capacity, estimatedFare: fare,
-      passengers: [{ ...CURRENT_STUDENT, pickup, luggage }], messages: [],
+      passengers: [{ ...CURRENT_STUDENT, pickup: pickup.trim(), luggage }], messages: [],
     };
     onCreate(routePool);
   };
@@ -308,7 +309,7 @@ function PostTrip({ onCreate, onBack }: { onCreate: (pool: Pool) => void; onBack
     <div className="grid gap-6 lg:grid-cols-[1fr_330px]">
       <form onSubmit={submit} className="space-y-6 rounded-xl border border-border bg-card p-5 shadow-sm sm:p-7">
         <fieldset><legend className="mb-3 text-sm font-semibold">Which way are you travelling?</legend><div className="grid grid-cols-2 gap-2">{(["Home", "To campus"] as const).map((item) => <Button type="button" key={item} variant={tripDirection === item ? "default" : "outline"} onClick={() => setTripDirection(item)} className="h-11 gap-2"><ArrowLeftRight className="size-4" /> {item === "Home" ? "Leaving campus" : "Returning to TIET"}</Button>)}</div></fieldset>
-        <div className="grid gap-4 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium">Destination hub<span className="relative"><select value={hub} onChange={(event) => setHub(event.target.value as (typeof TRANSIT_HUBS)[number])} className="h-11 w-full appearance-none rounded-md border border-input bg-background px-3 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">{TRANSIT_HUBS.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /></span></label><label className="grid gap-1.5 text-sm font-medium">Travel date<Input required type="date" value={date} onChange={(event) => setDate(event.target.value)} min="2026-11-11" className="h-11" /></label><label className="grid gap-1.5 text-sm font-medium">Target arrival time<Input required type="time" value={arrival} onChange={(event) => setArrival(event.target.value)} className="h-11" /></label><label className="grid gap-1.5 text-sm font-medium">Train / flight number <span className="font-normal text-muted-foreground">(optional)</span><Input value={transit} onChange={(event) => setTransit(event.target.value)} placeholder="e.g. Vande Bharat 22448" className="h-11" /></label><label className="grid gap-1.5 text-sm font-medium">Pickup point<span className="relative"><select value={pickup} onChange={(event) => setPickup(event.target.value)} className="h-11 w-full appearance-none rounded-md border border-input bg-background px-3 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">{PICKUP_POINTS.map((point) => <option key={point}>{point}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /></span></label><label className="grid gap-1.5 text-sm font-medium">Your luggage<span className="relative"><select value={luggage} onChange={(event) => setLuggage(event.target.value as Luggage)} className="h-11 w-full appearance-none rounded-md border border-input bg-background px-3 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">{(["Small bag", "1 suitcase", "Heavy luggage"] as const).map((item) => <option key={item}>{item}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /></span></label></div>
+        <div className="grid gap-4 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium">{tripDirection === "Home" ? "Where are you going?" : "Where are you starting from?"}<Input required list="place-suggestions-post" value={hub} onChange={(event) => setHub(event.target.value)} placeholder="Type any station, airport, bus stand or city" className="h-11" /><datalist id="place-suggestions-post">{TRANSIT_HUBS.map((item) => <option key={item} value={item} />)}</datalist></label><label className="grid gap-1.5 text-sm font-medium">Travel date<Input required type="date" value={date} onChange={(event) => setDate(event.target.value)} min="2026-11-11" className="h-11" /></label><label className="grid gap-1.5 text-sm font-medium">Target arrival time<Input required type="time" value={arrival} onChange={(event) => setArrival(event.target.value)} className="h-11" /></label><label className="grid gap-1.5 text-sm font-medium">Train / flight number <span className="font-normal text-muted-foreground">(optional)</span><Input value={transit} onChange={(event) => setTransit(event.target.value)} placeholder="e.g. Vande Bharat 22448" className="h-11" /></label><label className="grid gap-1.5 text-sm font-medium">Pickup point<Input required list="pickup-suggestions" value={pickup} onChange={(event) => setPickup(event.target.value)} placeholder="Hostel, gate or any spot" className="h-11" /><datalist id="pickup-suggestions">{PICKUP_POINTS.map((point) => <option key={point} value={point} />)}</datalist></label><label className="grid gap-1.5 text-sm font-medium">Total cab fare (₹) <span className="font-normal text-muted-foreground">(optional, we suggest {formatRupees(suggestedFare(hub) + (capacity === 6 ? 800 : 0))})</span><Input type="number" min={100} inputMode="numeric" value={customFare} onChange={(event) => setCustomFare(event.target.value)} placeholder={String(suggestedFare(hub) + (capacity === 6 ? 800 : 0))} className="h-11" /></label><label className="grid gap-1.5 text-sm font-medium">Your luggage<span className="relative"><select value={luggage} onChange={(event) => setLuggage(event.target.value as Luggage)} className="h-11 w-full appearance-none rounded-md border border-input bg-background px-3 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">{(["Small bag", "1 suitcase", "Heavy luggage"] as const).map((item) => <option key={item}>{item}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /></span></label></div>
         <fieldset><legend className="mb-3 text-sm font-semibold">Cab size</legend><div className="grid grid-cols-2 gap-2">{([4, 6] as const).map((size) => <Button type="button" key={size} variant={capacity === size ? "default" : "outline"} onClick={() => setCapacity(size)} className="h-auto justify-start gap-3 px-3.5 py-3"><Users className="size-4 shrink-0" /><span className="text-left">{size} seats <span className="block text-[10px] font-normal opacity-75">{size === 4 ? "Standard cab" : "XL cab"}</span></span></Button>)}</div></fieldset>
         <div className="flex flex-col justify-between gap-3 border-t border-border pt-5 sm:flex-row sm:items-center"><p className="text-xs text-muted-foreground">By posting, you agree to coordinate pickup with your pool.</p><Button type="submit" disabled={!canSubmit} className="gap-2"><Plus className="size-4" /> Create my pool</Button></div>
       </form>

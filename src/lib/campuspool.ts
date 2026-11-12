@@ -27,7 +27,7 @@ export type PoolMessage = { id: string; author: string; text: string; time: stri
 export type Pool = {
   id: string;
   direction: Direction;
-  destination: (typeof TRANSIT_HUBS)[number];
+  destination: string;
   date: string;
   departureStart: string;
   departureEnd: string;
@@ -49,12 +49,18 @@ export const CURRENT_STUDENT: Passenger = {
   luggage: "1 suitcase",
 };
 
-export const FARE_BY_HUB: Record<(typeof TRANSIT_HUBS)[number], number> = {
+export const FARE_BY_HUB: Record<string, number> = {
   "Ambala Cantt Railway Station": 1400,
   "Chandigarh Airport (IXC)": 1800,
   "Delhi Kashmere Gate ISBT": 2400,
   "Patiala Railway Station": 1200,
 };
+
+/** Suggested cab fare for a place; unknown custom places fall back to a typical local fare. */
+export function suggestedFare(place: string) {
+  const key = Object.keys(FARE_BY_HUB).find((hub) => hub.toLowerCase() === place.trim().toLowerCase());
+  return key ? FARE_BY_HUB[key] : 1500;
+}
 
 const passenger = (
   id: string,
