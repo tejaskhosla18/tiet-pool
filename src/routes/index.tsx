@@ -48,6 +48,7 @@ function CampusPoolApp() {
   const [hydrated, setHydrated] = useState(false);
   const [tab, setTab] = useState<Tab>("Find a Cab");
   const [direction, setDirection] = useState<Direction>("Home");
+  const [pickupPlace, setPickupPlace] = useState("");
   const [destination, setDestination] = useState("");
   const [travelDate, setTravelDate] = useState("");
   const [period, setPeriod] = useState<Period>("Any time");
@@ -83,7 +84,20 @@ function CampusPoolApp() {
   const myPools = pools.filter((pool) => pool.passengers.some((person) => person.id === CURRENT_STUDENT.id));
   const filteredPools = useMemo(() => pools.filter((pool) => {
     if (pool.direction !== direction) return false;
-    if (destination.trim() && !pool.destination.toLowerCase().includes(destination.trim().toLowerCase())) return false;
+    const pickupQuery = pickupPlace.trim().toLowerCase();
+    if (pickupQuery) {
+      const matchesPickup = direction === "Home"
+        ? pool.passengers.some((passenger) => passenger.pickup.toLowerCase().includes(pickupQuery)) || "tiet patiala".includes(pickupQuery)
+        : pool.destination.toLowerCase().includes(pickupQuery);
+      if (!matchesPickup) return false;
+    }
+    const destinationQuery = destination.trim().toLowerCase();
+    if (destinationQuery) {
+      const matchesDestination = direction === "Home"
+        ? pool.destination.toLowerCase().includes(destinationQuery)
+        : "tiet patiala".includes(destinationQuery) || "thapar institute of engineering & technology".includes(destinationQuery);
+      if (!matchesDestination) return false;
+    }
     if (travelDate && pool.date !== travelDate) return false;
     if (period !== "Any time" && timePeriod(pool.departureStart).toLowerCase() !== period.toLowerCase()) return false;
     if (seatsOnly && availableSeats(pool) === 0) return false;
@@ -156,6 +170,15 @@ function CampusPoolApp() {
     toast.success("Your trip is live", { description: "It’s now visible to students travelling from TIET." });
   };
 
+  const submitSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (filteredPools.length) {
+      toast.success(`${filteredPools.length} ${filteredPools.length === 1 ? "ride" : "rides"} match your trip`);
+    } else {
+      toast("No shared rides yet", { description: "Post your trip and invite fellow TIET students to join." });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Toaster position="top-center" richColors />
@@ -188,10 +211,10 @@ function CampusPoolApp() {
         </div>
 
         {tab === "Find a Cab" && <FindTrips
-          direction={direction} setDirection={setDirection} destination={destination} setDestination={setDestination}
+          direction={direction} setDirection={setDirection} pickupPlace={pickupPlace} setPickupPlace={setPickupPlace} destination={destination} setDestination={setDestination}
           travelDate={travelDate} setTravelDate={setTravelDate} period={period} setPeriod={setPeriod}
           seatsOnly={seatsOnly} setSeatsOnly={setSeatsOnly} pools={filteredPools} totalCount={pools.filter((p) => p.direction === direction).length}
-          onJoin={joinPool} onDetails={setSelectedPoolId} onPost={() => changeTab("Post a Trip")} onFare={() => changeTab("Fare Estimator")} myPoolIds={myPools.map((pool) => pool.id)}
+          onJoin={joinPool} onDetails={setSelectedPoolId} onPost={() => changeTab("Post a Trip")} onFare={() => changeTab("Fare Estimator")} onSearch={submitSearch} myPoolIds={myPools.map((pool) => pool.id)}
         />}
         {tab === "Post a Trip" && <PostTrip onCreate={createPool} onBack={() => changeTab("Find a Cab")} />}
         {tab === "My Active Pools" && <MyPools pools={myPools} onDetails={setSelectedPoolId} onBrowse={() => changeTab("Find a Cab")} onPost={() => changeTab("Post a Trip")} />}
@@ -205,50 +228,50 @@ function CampusPoolApp() {
 }
 
 type FiltersProps = {
-  direction: Direction; setDirection: (value: Direction) => void; destination: string; setDestination: (value: string) => void;
+  direction: Direction; setDirection: (value: Direction) => void; pickupPlace: string; setPickupPlace: (value: string) => void; destination: string; setDestination: (value: string) => void;
   travelDate: string; setTravelDate: (value: string) => void; period: Period; setPeriod: (value: Period) => void;
   seatsOnly: boolean; setSeatsOnly: (value: boolean) => void; pools: Pool[]; totalCount: number;
-  onJoin: (pool: Pool) => void; onDetails: (id: string) => void; onPost: () => void; onFare: () => void; myPoolIds: string[];
+  onJoin: (pool: Pool) => void; onDetails: (id: string) => void; onPost: () => void; onFare: () => void; onSearch: (event: React.FormEvent<HTMLFormElement>) => void; myPoolIds: string[];
 };
 
 function FindTrips(props: FiltersProps) {
-  const { direction, setDirection, destination, setDestination, travelDate, setTravelDate, period, setPeriod, seatsOnly, setSeatsOnly, pools, totalCount, onJoin, onDetails, onPost, onFare, myPoolIds } = props;
+  const { direction, setDirection, pickupPlace, setPickupPlace, destination, setDestination, travelDate, setTravelDate, period, setPeriod, seatsOnly, setSeatsOnly, pools, totalCount, onJoin, onDetails, onPost, onFare, onSearch, myPoolIds } = props;
   return <>
-    <section className="relative mb-9 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-      <img src={campusRideImage} alt="TIET students meeting beside their shared ride" width={1408} height={800} className="absolute inset-0 size-full object-cover object-[center_55%]" />
-      <div className="absolute inset-0 bg-gradient-to-r from-foreground/90 via-foreground/65 to-foreground/5" />
-      <div className="relative grid min-h-[286px] grid-cols-1 items-end gap-4 p-6 text-primary-foreground sm:min-h-[314px] sm:p-9 lg:grid-cols-[1fr_auto] lg:items-center lg:p-12">
-        <div className="max-w-2xl">
-          <Badge className="mb-4 gap-1.5 border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/10"><Radio className="size-3" /> TIET rides, moving together</Badge>
-          <h1 className="max-w-xl text-3xl font-bold leading-tight sm:text-4xl">Going home? <span className="text-primary-foreground/75">Don’t go alone.</span></h1>
-          <p className="mt-3 max-w-lg text-sm leading-6 text-primary-foreground/80">Find your people, share the ride, and split the fare. From TIET Patiala to the station, airport, or home—and back again.</p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Button onClick={onPost} variant="secondary" className="gap-2"><Plus className="size-4" /> Post a trip</Button>
-            <Button onClick={onFare} variant="outline" className="border-primary-foreground/40 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"><Wallet className="size-4" /> Compare fares</Button>
+    <section className="mb-8 overflow-hidden rounded-xl border border-border bg-card shadow-sm" aria-label="Find a shared ride">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_310px]">
+        <div className="p-5 sm:p-7 lg:p-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div><div className="flex items-center gap-2 text-xs font-semibold text-primary"><BadgeCheck className="size-4" /> TIET Patiala student rides</div><h1 className="mt-2 text-2xl font-bold sm:text-3xl">Where are you heading?</h1><p className="mt-1 text-sm text-muted-foreground">Find a ride with fellow students and split the fare.</p></div>
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1" aria-label="Trip direction">
+              {(["Home", "To campus"] as const).map((value) => <Button key={value} type="button" size="sm" variant={direction === value ? "default" : "ghost"} onClick={() => { setDirection(value); setPickupPlace(""); setDestination(""); }} className="gap-1.5"><ArrowLeftRight className="size-3.5" />{value === "Home" ? "Going home" : "To campus"}</Button>)}
+            </div>
           </div>
+          <form onSubmit={onSearch} className="mt-6">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1.5 text-xs font-semibold text-muted-foreground">PICKUP
+                <span className="relative"><MapPin className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" /><Input list="place-suggestions" value={pickupPlace} onChange={(event) => setPickupPlace(event.target.value)} placeholder={direction === "Home" ? "TIET, hostel, gate or pickup point" : "Station, airport, bus stop or city"} aria-label="Pickup location" className="h-12 pl-9 text-sm" /><datalist id="place-suggestions">{["TIET Patiala", ...TRANSIT_HUBS, ...PICKUP_POINTS].map((place) => <option key={place} value={place} />)}</datalist></span>
+              </label>
+              <label className="grid gap-1.5 text-xs font-semibold text-muted-foreground">DROP-OFF
+                <span className="relative"><MapPin className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" /><Input list="drop-suggestions" value={destination} onChange={(event) => setDestination(event.target.value)} placeholder={direction === "Home" ? "Station, airport, bus stop or any city" : "TIET Patiala campus"} aria-label="Drop-off destination" className="h-12 pl-9 text-sm" /><datalist id="drop-suggestions">{[...TRANSIT_HUBS, "TIET Patiala", ...PICKUP_POINTS].map((place) => <option key={place} value={place} />)}</datalist></span>
+              </label>
+              <label className="grid gap-1.5 text-xs font-semibold text-muted-foreground">TRAVEL DATE<span className="relative"><CalendarDays className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" /><Input type="date" value={travelDate} onChange={(event) => setTravelDate(event.target.value)} className="h-12 pl-9 text-sm font-normal" aria-label="Travel date" /></span></label>
+              <label className="grid gap-1.5 text-xs font-semibold text-muted-foreground">DEPARTURE WINDOW<span className="relative"><Clock3 className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" /><select value={period} onChange={(event) => setPeriod(event.target.value as Period)} className="h-12 w-full appearance-none rounded-md border border-input bg-background pl-9 pr-8 text-sm font-normal text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">{TIME_FILTERS.map((time) => <option key={time}>{time}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /></span></label>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={seatsOnly} onChange={(event) => setSeatsOnly(event.target.checked)} className="size-4 accent-primary" /> Seats available</label>
+              <div className="flex w-full gap-2 sm:w-auto"><Button type="button" variant="outline" onClick={() => { setPickupPlace(""); setDestination(""); setTravelDate(""); setPeriod("Any time"); setSeatsOnly(false); }} className="gap-1.5"><SlidersHorizontal className="size-4" /> Reset</Button><Button type="submit" className="flex-1 gap-2 sm:min-w-40 sm:flex-none"><MapPin className="size-4" /> Find rides <ArrowRight className="size-4" /></Button></div>
+            </div>
+          </form>
         </div>
-        <div className="hidden min-w-44 border-l border-primary-foreground/30 pl-6 text-primary-foreground lg:block"><div className="font-display text-3xl font-bold">{totalCount.toString().padStart(2, "0")}</div><div className="mt-1 text-xs text-primary-foreground/75">rides open for your direction</div><div className="mt-5 flex items-center gap-1.5 text-xs"><BadgeCheck className="size-4" /> Student community</div></div>
+        <div className="relative min-h-40 overflow-hidden lg:min-h-full">
+          <img src={campusRideImage} alt="Students sharing a ride from campus" width={1408} height={800} className="absolute inset-0 size-full object-cover object-[center_55%]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/15 to-transparent lg:bg-gradient-to-r lg:from-transparent lg:via-foreground/10 lg:to-foreground/60" />
+          <div className="absolute inset-x-5 bottom-4 text-primary-foreground lg:inset-x-6 lg:bottom-6"><div className="flex items-center gap-1.5 text-xs font-semibold"><ShieldCheck className="size-4" /> Student community</div><p className="mt-1 text-sm font-medium">{totalCount} shared {totalCount === 1 ? "ride" : "rides"} open for this direction</p></div>
+        </div>
       </div>
     </section>
 
-    <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">Travel together, arrive together</p><h2 className="mt-1 text-2xl font-bold">Find a ride</h2><p className="mt-1 text-sm text-muted-foreground">Browse student pools leaving TIET for their next stop.</p></div>
-      <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1" aria-label="Trip direction">
-        {(["Home", "To campus"] as const).map((value) => <Button key={value} size="sm" variant={direction === value ? "default" : "ghost"} onClick={() => setDirection(value)} className="gap-1.5"><ArrowLeftRight className="size-3.5" />{value}</Button>)}
-      </div>
-    </div>
-
-    <section className="mb-7 grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-[1.5fr_1fr_1fr_1.3fr_auto] xl:items-end" aria-label="Ride filters">
-      <label className="grid gap-1.5 text-[11px] font-semibold text-muted-foreground">DESTINATION HUB
-        <span className="relative"><MapPin className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" /><Input list="place-suggestions" value={destination} onChange={(event) => setDestination(event.target.value)} placeholder="Search any place (e.g. Ludhiana, Ambala)" aria-label="Search destination" className="h-10 pl-9" /><datalist id="place-suggestions">{TRANSIT_HUBS.map((hub) => <option key={hub} value={hub} />)}</datalist></span>
-      </label>
-      <label className="grid gap-1.5 text-[11px] font-semibold text-muted-foreground">TRAVEL DATE<span className="relative"><CalendarDays className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" /><Input type="date" value={travelDate} onChange={(event) => setTravelDate(event.target.value)} className="h-10 pl-9 text-sm font-normal" aria-label="Filter by travel date" /></span></label>
-      <label className="grid gap-1.5 text-[11px] font-semibold text-muted-foreground">DEPARTURE TIME<span className="relative"><Clock3 className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" /><select value={period} onChange={(event) => setPeriod(event.target.value as Period)} className="h-10 w-full appearance-none rounded-md border border-input bg-background pl-9 pr-8 text-sm font-normal text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">{TIME_FILTERS.map((time) => <option key={time}>{time}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /></span></label>
-      <label className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-input px-3 text-sm text-foreground"><input type="checkbox" checked={seatsOnly} onChange={(event) => setSeatsOnly(event.target.checked)} className="size-4 accent-primary" /> Only show available seats</label>
-      <Button variant="ghost" size="sm" onClick={() => { setDestination(""); setTravelDate(""); setPeriod("Any time"); setSeatsOnly(false); }} className="gap-1.5 text-muted-foreground"><SlidersHorizontal className="size-4" /> Reset</Button>
-    </section>
-
-    <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2"><Badge variant="secondary" className="font-semibold">{pools.length} {pools.length === 1 ? "ride" : "rides"}</Badge><span className="text-sm text-muted-foreground">{direction === "Home" ? "Heading away from campus" : "Heading to TIET Patiala"}</span></div><span className="hidden text-xs text-muted-foreground sm:block">Updated just now</span></div>
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold">Rides for your route</h2><p className="mt-1 text-sm text-muted-foreground">Browse student trips and see the fare before you join.</p></div><div className="flex items-center gap-2"><Badge variant="secondary" className="font-semibold">{pools.length} {pools.length === 1 ? "ride" : "rides"}</Badge><Button variant="ghost" size="sm" onClick={onPost} className="gap-1.5 text-primary"><Plus className="size-4" /> Post a trip</Button></div></div>
     {pools.length === 0 ? <EmptyRides onPost={onPost} /> : <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">{pools.map((pool) => <PoolCard key={pool.id} pool={pool} isMine={myPoolIds.includes(pool.id)} onJoin={() => onJoin(pool)} onDetails={() => onDetails(pool.id)} />)}</div>}
     <section className="mt-8 flex flex-col gap-4 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-secondary text-secondary-foreground"><Wallet className="size-5" /></div><div><div className="text-sm font-semibold">Know your fare before you go</div><div className="text-xs text-muted-foreground">See how a shared ride compares with a solo taxi.</div></div></div><Button variant="outline" onClick={onFare} className="gap-2 self-start sm:self-auto">Open fare estimator <ArrowRight className="size-4" /></Button></section>
   </>;
