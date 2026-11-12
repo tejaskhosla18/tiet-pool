@@ -1,6 +1,6 @@
 # CampusPool roadmap
 
-- [ ] Build a responsive TIET Patiala CampusPool dashboard for student trips home and back to campus, with room to add other campuses.
-- [ ] Add interactive search, filtering, ride creation, joining/leaving, detail, safety, and fare tools.
-- [ ] Persist mock pools in local storage and verify key pool rules with tests.
-- [ ] Verify the app in desktop and mobile previews and check current build logs.
+- [ ] Refocus CampusPool around a student-first ride-hailing booking flow for TIET Patiala, ready to extend to other campuses.
+- [ ] Let students choose flexible pickup and destination places, dates, and times, then match, create, join, and manage shared rides.
+- [ ] Preserve local demo persistence and safety, fare, and pool-detail tools while checking key ride rules.
+- [ ] Verify desktop/mobile previews and current build logs.
