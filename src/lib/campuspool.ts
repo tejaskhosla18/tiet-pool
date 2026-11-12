@@ -59,7 +59,7 @@ export const FARE_BY_HUB: Record<string, number> = {
 /** Suggested cab fare for a place; unknown custom places fall back to a typical local fare. */
 export function suggestedFare(place: string) {
   const key = Object.keys(FARE_BY_HUB).find((hub) => hub.toLowerCase() === place.trim().toLowerCase());
-  return key ? FARE_BY_HUB[key] : 1500;
+  return (key && FARE_BY_HUB[key]) || 1500;
 }
 
 const passenger = (
