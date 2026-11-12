@@ -27,7 +27,7 @@ export type PoolMessage = { id: string; author: string; text: string; time: stri
 export type Pool = {
   id: string;
   direction: Direction;
-  destination: (typeof TRANSIT_HUBS)[number];
+  destination: string;
   date: string;
   departureStart: string;
   departureEnd: string;
@@ -49,12 +49,18 @@ export const CURRENT_STUDENT: Passenger = {
   luggage: "1 suitcase",
 };
 
-export const FARE_BY_HUB: Record<(typeof TRANSIT_HUBS)[number], number> = {
+export const FARE_BY_HUB: Record<string, number> = {
   "Ambala Cantt Railway Station": 1400,
   "Chandigarh Airport (IXC)": 1800,
   "Delhi Kashmere Gate ISBT": 2400,
   "Patiala Railway Station": 1200,
 };
+
+/** Suggested cab fare for a place; unknown custom places fall back to a typical local fare. */
+export function suggestedFare(place: string) {
+  const key = Object.keys(FARE_BY_HUB).find((hub) => hub.toLowerCase() === place.trim().toLowerCase());
+  return (key && FARE_BY_HUB[key]) || 1500;
+}
 
 const passenger = (
   id: string,
@@ -168,7 +174,7 @@ export function orderedPassengers(passengers: Passenger[]) {
 }
 
 export function timePeriod(time: string): "Early morning" | "Afternoon" | "Evening" | "Late night" {
-  const [hours] = time.split(":").map(Number);
+  const hours = Number(time.split(":")[0] ?? 0);
   if (hours < 8) return "Early morning";
   if (hours >= 21 || hours < 4) return "Late night";
   if (hours < 17) return "Afternoon";
@@ -176,7 +182,8 @@ export function timePeriod(time: string): "Early morning" | "Afternoon" | "Eveni
 }
 
 export function formatTime(time: string) {
-  const [hoursValue, minutes] = time.split(":").map(Number);
+  const hoursValue = Number(time.split(":")[0] ?? 0);
+  const minutes = Number(time.split(":")[1] ?? 0);
   const hours = hoursValue % 12 || 12;
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")} ${hoursValue >= 12 ? "PM" : "AM"}`;
 }
