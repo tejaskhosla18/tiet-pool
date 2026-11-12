@@ -138,7 +138,7 @@ function CampusPoolApp() {
   const addMessage = (pool: Pool) => {
     const text = newMessage.trim();
     if (!text) return;
-    const message: PoolMessage = { id: `m-${Date.now()}`, author: CURRENT_STUDENT.name.split(" ")[0], text, time: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) };
+    const message: PoolMessage = { id: `m-${Date.now()}`, author: CURRENT_STUDENT.name.split(" ")[0] ?? "You", text, time: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) };
     setPools((current) => current.map((item) => item.id === pool.id ? { ...item, messages: [...item.messages, message] } : item));
     setNewMessage("");
     toast.success("Message sent to your pool");
@@ -283,7 +283,7 @@ function PostTrip({ onCreate, onBack }: { onCreate: (pool: Pool) => void; onBack
   const [arrival, setArrival] = useState("08:00");
   const [transit, setTransit] = useState("");
   const [luggage, setLuggage] = useState<Luggage>("1 suitcase");
-  const [pickup, setPickup] = useState<string>(PICKUP_POINTS[9] ?? "Hostel J");
+  const [pickup, setPickup] = useState<string>("Hostel J");
   const [capacity, setCapacity] = useState<4 | 6>(4);
   const fare = Number(customFare) > 0 ? Number(customFare) : suggestedFare(hub) + (capacity === 6 ? 800 : 0);
   const canSubmit = Boolean(date && arrival && pickup.trim() && hub.trim());
@@ -291,7 +291,7 @@ function PostTrip({ onCreate, onBack }: { onCreate: (pool: Pool) => void; onBack
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) { toast.error("Add a destination, date, arrival time, and pickup point."); return; }
-    const [hours] = arrival.split(":").map(Number);
+    const hours = Number(arrival.split(":")[0] ?? 0);
     const departureStart = `${String((hours + 22) % 24).padStart(2, "0")}:${arrival.split(":")[1]}`;
     const departureEnd = `${String((hours + 22) % 24).padStart(2, "0")}:${String((Number(arrival.split(":")[1]) + 20) % 60).padStart(2, "0")}`;
     const routePool: Pool = {

@@ -174,7 +174,7 @@ export function orderedPassengers(passengers: Passenger[]) {
 }
 
 export function timePeriod(time: string): "Early morning" | "Afternoon" | "Evening" | "Late night" {
-  const [hours] = time.split(":").map(Number);
+  const hours = Number(time.split(":")[0] ?? 0);
   if (hours < 8) return "Early morning";
   if (hours >= 21 || hours < 4) return "Late night";
   if (hours < 17) return "Afternoon";
@@ -182,7 +182,8 @@ export function timePeriod(time: string): "Early morning" | "Afternoon" | "Eveni
 }
 
 export function formatTime(time: string) {
-  const [hoursValue, minutes] = time.split(":").map(Number);
+  const hoursValue = Number(time.split(":")[0] ?? 0);
+  const minutes = Number(time.split(":")[1] ?? 0);
   const hours = hoursValue % 12 || 12;
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")} ${hoursValue >= 12 ? "PM" : "AM"}`;
 }
